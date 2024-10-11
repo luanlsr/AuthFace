@@ -1,0 +1,48 @@
+# Diretórios do ambiente virtual
+venv/
+env/
+.env/
+
+# Arquivos de cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de configuração do IDE
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Arquivos de logs
+*.log
+
+# Arquivos de banco de dados
+*.sqlite3
+*.db
+
+# Arquivos de teste
+.test_output/
+.coverage
+.coverage.*
+nosetests.xml
+pytest.xml
+*.cover
+
+# Arquivos de pacote
+dist/
+build/
+*.egg-info/
+
+# Arquivos de configuração do Jupyter Notebook
+.ipynb_checkpoints
+
+# Outros arquivos que podem ser sensíveis
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+*.temp
+
+# Arquivos de dados
+dados_face.pkl
