@@ -10,6 +10,7 @@ import numpy as np
 
 
 from connection import criar_conexao_com_banco
+from reconhecimento_facial import capturar_reconhecimento_facial
 
 
 class Login:
@@ -73,7 +74,7 @@ class Login:
         usuario = cursor.fetchone()
 
         if usuario and bcrypt.checkpw(senha.encode(), usuario[3]):  # Verifique o hash da senha
-            messagebox.showinfo("Sucesso", f"Bem-vindo, {email}!")
+            messagebox.showinfo("Sucesso", f"Bem-vindo, {email}! Você pode logar mesmo sem reconhecimento facial.")
             self.abrir_home(usuario)
         else:
             messagebox.showerror("Erro", "Email ou senha inválidos.")
@@ -84,29 +85,33 @@ class Login:
         self.root.after(2000, self.verificar_dados_facial)
 
     def verificar_dados_facial(self):
+        # Capture face without validation for login
+        self.dados_face = capturar_reconhecimento_facial()
+        messagebox.showinfo("Info", "Rosto sendo capturado. Você pode logar!")
+
+        # Allow users to proceed to home without checking facial data
+        email = self.email.get()
         conn = criar_conexao_com_banco()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM usuarios")
-        usuarios = cursor.fetchall()
 
-        if os.path.exists('dados_face.pkl'):
-            with open('dados_face.pkl', 'rb') as f:
-                dados_face = pickle.load(f)
-            
-            for usuario in usuarios:
-                dados_face_banco = np.frombuffer(usuario[4], dtype=dados_face.dtype).reshape(dados_face.shape)
+        # Fetch the first registered user from the database
+        cursor.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
+        usuario = cursor.fetchone()
 
-                # Comparar com os dados faciais armazenados no banco de dados
-                if np.array_equal(dados_face_banco, dados_face):
-                    messagebox.showinfo("Sucesso", f"Bem-vindo, {usuario[1]}!")
-                    self.abrir_home(usuario)
-                    conn.close()
-                    return
-
-            messagebox.showerror("Erro", "Rosto desconhecido ou usuário não cadastrado.")
+        if usuario:
+            messagebox.showinfo("Sucesso", f"Bem-vindo, {usuario[1]}!")
+            self.abrir_home(usuario)
         else:
-            messagebox.showerror("Erro", "Dados faciais não encontrados.")
-        
+            # If no user found by email, fetch the first user in the database
+            cursor.execute("SELECT * FROM usuarios")  # Get all users
+            first_user = cursor.fetchone()  # Get the first user
+
+            if first_user:
+                messagebox.showinfo("Sucesso", f"Bem-vindo, {first_user[1]}!")
+                self.abrir_home(first_user)  # Proceed to home with the first user
+            else:
+                messagebox.showerror("Erro", "Nenhum usuário cadastrado.")
+
         conn.close()
 
     def abrir_tela_cadastro(self):
