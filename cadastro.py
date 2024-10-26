@@ -1,88 +1,129 @@
 import tkinter as tk
+import customtkinter as ctk
 from tkinter import messagebox
 import subprocess
 import os
 import pickle
+import pyodbc
+import bcrypt
+
+from connection import criar_conexao_com_banco
+
 
 class CadastroUsuario:
-    def __init__(self, root):
+    def __init__(self, root, login_window):
         self.root = root
+        self.login_window = login_window
         self.root.title("Cadastro de Usuário")
-        self.root.geometry("400x400")
+        self.root.geometry("800x600")
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("dark-blue")
 
         self.nome = tk.StringVar()
         self.email = tk.StringVar()
         self.senha = tk.StringVar()
-        self.reconhecimento_face_realizado = False
-        self.dados_face = ""
+        self.dados_face = None
 
         self.create_widgets()
 
     def create_widgets(self):
-        tk.Label(self.root, text="Nome").pack(pady=5)
-        tk.Entry(self.root, textvariable=self.nome).pack(pady=5)
+        frame = ctk.CTkFrame(self.root)
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        tk.Label(self.root, text="Email").pack(pady=5)
-        tk.Entry(self.root, textvariable=self.email).pack(pady=5)
+        # Configura o layout centralizado
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_rowconfigure(7, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(3, weight=1)
 
-        tk.Label(self.root, text="Senha").pack(pady=5)
-        tk.Entry(self.root, textvariable=self.senha, show="*").pack(pady=5)
+        # Título
+        title_label = ctk.CTkLabel(frame, text="Cadastrar Usuário", font=("Arial", 20, "bold"))
+        title_label.grid(row=1, column=1, columnspan=2, pady=(10, 15), sticky="n")
 
-        self.btn_face = tk.Button(self.root, text="Cadastrar Face", command=self.abrir_reconhecimento_face)
-        self.btn_face.pack(pady=10)
+        # Campo de Nome
+        ctk.CTkLabel(frame, text="Nome").grid(row=2, column=1, pady=(5, 5), sticky='e')
+        ctk.CTkEntry(frame, textvariable=self.nome, width=300, placeholder_text="Digite seu nome").grid(row=2, column=2, pady=(5, 5), padx=(0, 10), sticky='w')
 
-        self.label_dados_face = tk.Label(self.root, text="")
-        self.label_dados_face.pack(pady=10)
+        # Campo de Email
+        ctk.CTkLabel(frame, text="Email").grid(row=3, column=1, pady=(5, 5), sticky='e')
+        ctk.CTkEntry(frame, textvariable=self.email, width=300, placeholder_text="Digite seu email").grid(row=3, column=2, pady=(5, 5), padx=(0, 10), sticky='w')
 
-        self.btn_cadastrar = tk.Button(self.root, text="Cadastrar", state=tk.DISABLED, bg="green", fg="white", command=self.cadastrar_usuario)
-        self.btn_cadastrar.pack(pady=10)
+        # Campo de Senha
+        ctk.CTkLabel(frame, text="Senha").grid(row=4, column=1, pady=(5, 5), sticky='e')
+        ctk.CTkEntry(frame, textvariable=self.senha, show="*", width=300, placeholder_text="Digite sua senha").grid(row=4, column=2, pady=(5, 10), padx=(0, 10), sticky='w')
 
-        self.root.bind('<KeyRelease>', self.verificar_campos_preenchidos)
+        # Botão de Captura de Face
+        self.btn_face = ctk.CTkButton(frame, text="Cadastrar Face", command=self.abrir_reconhecimento_face, fg_color="#9C27B0", text_color="white")
+        self.btn_face.grid(row=5, column=1, columnspan=2, pady=(10, 5), sticky="n")
 
-    def verificar_campos_preenchidos(self, event=None):
-        if self.nome.get() and self.email.get() and self.senha.get() and self.reconhecimento_face_realizado:
-            self.btn_cadastrar.config(state=tk.NORMAL)
-        else:
-            self.btn_cadastrar.config(state=tk.DISABLED)
+        # Label de Status da Captura de Face
+        self.label_dados_face = ctk.CTkLabel(frame, text="")
+        self.label_dados_face.grid(row=6, column=1, columnspan=2, pady=(5, 5), sticky="n")
+
+        # Botão de Cadastro
+        self.btn_cadastrar = ctk.CTkButton(frame, text="Cadastrar", command=self.cadastrar_usuario, fg_color="#4CAF50", text_color="white")
+        self.btn_cadastrar.grid(row=7, column=1, columnspan=2, pady=(5, 15), sticky="n")
+        self.btn_cadastrar.configure(state=tk.DISABLED)
 
     def abrir_reconhecimento_face(self):
-        self.label_dados_face.config(text="Reconhecendo rosto...")  # Mantém a mensagem
-
-        # Desabilita o botão enquanto reconhece o rosto
-        self.btn_face.config(state=tk.DISABLED)
-
-        # Verifique o caminho correto do Python no ambiente virtual
-        python_path = os.path.join(os.getcwd(), "venv", "Scripts", "python.exe")
-
-        # Executar o script de reconhecimento facial usando o Python do venv
-        subprocess.Popen([python_path, "reconhecimento_facial.py"])
-
-        # Aguarda um tempo para o reconhecimento
-        self.root.after(5000, self.carregar_dados_face)
+        subprocess.Popen(["python", "reconhecimento_facial.py"])
+        self.root.after(1000, self.carregar_dados_face)
 
     def carregar_dados_face(self):
-        # Carrega os dados biométricos do arquivo
-        if os.path.exists('dados_face.pkl'):
-            with open('dados_face.pkl', 'rb') as f:
-                self.dados_face = pickle.load(f)  # Carrega a codificação do rosto
-            self.reconhecimento_face_realizado = True
-            print(f"Dados Biométricos: {self.dados_face}")  # Exibe apenas no log
-            self.verificar_campos_preenchidos()
-            self.label_dados_face.config(text="Rosto reconhecido com sucesso!")  # Atualiza mensagem
-        else:
-            messagebox.showerror("Erro", "Dados biométricos não encontrados.")
-            self.label_dados_face.config(text="Erro no reconhecimento.")  # Atualiza mensagem de erro
-            self.btn_face.config(state=tk.NORMAL)  # Reabilita o botão
+        for _ in range(5):
+            if os.path.exists('dados_face.pkl'):
+                with open('dados_face.pkl', 'rb') as f:
+                    self.dados_face = pickle.load(f)
+                print("Rosto reconhecido com sucesso.")
+                self.label_dados_face.configure(text="Rosto reconhecido com sucesso!")
+                self.btn_cadastrar.configure(state=tk.NORMAL)
+                return
+            else:
+                self.root.after(1000) 
+        messagebox.showerror("Erro", "Falha ao reconhecer o rosto.")
 
     def cadastrar_usuario(self):
         nome = self.nome.get()
         email = self.email.get()
         senha = self.senha.get()
 
-        print(f"Usuário: {nome}, Email: {email}, Senha: {senha}, Dados Face: {self.dados_face}")  # Exibe no log
+        # Hash da senha
+        senha_hash = bcrypt.hashpw(senha.encode(), bcrypt.gensalt())
 
-        messagebox.showinfo("Sucesso", "Usuário cadastrado com sucesso!")
+        if self.dados_face is not None:
+            dados_face_bytes = self.dados_face.tobytes()
+        else:
+            messagebox.showerror("Erro", "Dados faciais não capturados.")
+            return
 
-root = tk.Tk()
-app = CadastroUsuario(root)
-root.mainloop()
+        conn = criar_conexao_com_banco()
+        if conn is None:
+            return
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM usuarios WHERE email=?", (email,))
+            resultado = cursor.fetchone()
+
+            if resultado:
+                messagebox.showerror("Erro", "Email já cadastrado.")
+                return
+
+            # Armazena o hash da senha
+            cursor.execute("INSERT INTO usuarios (nome, email, senha, dados_face) VALUES (?, ?, ?, ?)",
+                        (nome, email, senha_hash, dados_face_bytes))
+
+            conn.commit()
+            messagebox.showinfo("Sucesso", "Usuário cadastrado com sucesso!")
+
+        except pyodbc.Error as e:
+            messagebox.showerror("Erro", f"Erro ao cadastrar usuário: {e}")
+        finally:
+            conn.close()
+
+        self.root.destroy()
+        self.login_window.deiconify()
+
+
+if __name__ == "__main__":
+    pass
